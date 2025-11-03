@@ -11,7 +11,7 @@ You can view my Word document here:
 # 📄 Word Document Embedded Preview
 
 <iframe 
-    src="https://docs.google.com/gview?url=https://raw.githubusercontent.com/hsj71/Flask/main/f.doc&embedded=true" 
+    src="https://github.com/hsj71/Flask/blob/main/f.doc" 
     width="100%" 
     height="700px" 
     frameborder="0">
