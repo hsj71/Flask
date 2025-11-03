@@ -8,10 +8,12 @@ You can view my Word document here:
 
 ---
 
-### 🖥️  Preview 
+# 📄 Word Document Embedded Preview
+
 <iframe 
     src="https://docs.google.com/gview?url=https://raw.githubusercontent.com/hsj71/Flask/main/f.doc&embedded=true" 
-    style="width:100%; height:700px;" 
+    width="100%" 
+    height="700px" 
     frameborder="0">
 </iframe>
 
