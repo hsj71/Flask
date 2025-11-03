@@ -23,12 +23,14 @@ File / Tag	Inline Preview	Why
 Here’s what’s possible and safe inside .md on GitHub:
 
 #### ✅ Works fine
+```
 
 ![Logo](https://github.com/hsj71/Flask/raw/main/logo.png)
 
 [Download Word file](https://raw.githubusercontent.com/hsj71/Flask/main/f.doc)
 
 [Read project documentation](https://hsj71.github.io/Flask/)
+```
 
 That’s all GitHub supports inline — images and links.
 
