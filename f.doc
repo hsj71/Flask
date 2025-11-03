@@ -1,0 +1,796 @@
+🧠 Concepts we’ll cover through the project:
+1.	Flask app structure (modular with __init__.py)
+2.	Blueprints (for organizing routes)
+3.	Templates & Jinja2 (dynamic HTML)
+4.	Static files (CSS, JS, images)
+5.	Forms (Flask-WTF, CSRF protection)
+6.	Database (SQLAlchemy, migrations)
+7.	User authentication (Flask-Login)
+8.	Session management
+9.	Error handling
+10.	Flashing messages
+11.	REST API (optional)
+12.	Pagination, search, file upload, etc.
+
+🛠️ Step 1: Project Folder Structure
+1.	taskmaster/
+2.	│
+3.	├── app/
+4.	│   ├── __init__.py        # App factory
+5.	│   ├── models.py          # DB models
+6.	│   ├── auth/              # Login, Register
+7.	│   │   ├── routes.py
+8.	│   │   ├── forms.py
+9.	│   ├── main/              # Dashboard, tasks
+10.	│   │   ├── routes.py
+11.	│   │   ├── forms.py
+12.	│   ├── templates/
+13.	│   │   ├── layout.html
+14.	│   │   ├── login.html, register.html, dashboard.html, etc.
+15.	│   ├── static/
+16.	│       ├── css/, js/, etc.
+17.	│
+18.	├── migrations/            # Auto-generated later
+19.	├── config.py              # App config
+20.	├── run.py                 # Entry point
+21.	├── requirements.txt
+
+
+
+🚧 Phase 1: Project Setup & Basic Structure
+We'll begin with setting up the folder structure and a basic "Hello World" app to understand how everything connects.
+✅ Step 1: Folder Structure
+Create a folder like this:
+TaskMaster/
+│
+├── app/
+│   ├── __init__.py        # Initialize Flask app & extensions
+│   ├── models.py          # Database models
+│   ├── routes.py          # All app routes
+│   ├── forms.py           # Flask-WTF forms
+│   └── templates/         # HTML files
+│       └── base.html
+│
+├── static/                # CSS, JS, images (optional now)
+│
+├── config.py              # App configuration
+├── run.py                 # Entry point to run the app
+└── requirements.txt       # Required packages
+________________________________________
+✅ Step 2: run.py – Entry Point
+from app import create_app
+app = create_app()
+
+if __name__ == '__main__':
+    app.run(debug=True)
+•	This file just runs the app.
+•	create_app() is a factory function that creates and returns a Flask app.
+________________________________________
+✅ Step 3: app/__init__.py – App Factory
+from flask import Flask
+from flask_sqlalchemy import SQLAlchemy
+from flask_login import LoginManager
+
+db = SQLAlchemy()
+login_manager = LoginManager()
+
+def create_app():
+    app = Flask(__name__)
+    app.config.from_object('config.Config')
+
+    db.init_app(app)
+    login_manager.init_app(app)
+
+    from .routes import main
+    app.register_blueprint(main)
+
+    return app
+💡 Concepts introduced:
+•	Flask() creates the app.
+•	config.from_object() loads config from config.py.
+•	db.init_app() & login_manager.init_app() attach extensions to the app.
+•	register_blueprint() connects route files modularly.
+________________________________________
+✅ Step 4: config.py – Configuration
+import os
+class Config:
+    SECRET_KEY = 'supersecretkey'
+    SQLALCHEMY_DATABASE_URI = 'sqlite:///taskmaster.db'
+    SQLALCHEMY_TRACK_MODIFICATIONS = False
+💡 Concepts:
+•	SECRET_KEY is used for sessions, CSRF protection.
+•	SQLite DB configured for testing/development.
+________________________________________
+✅ Step 5: routes.py – A Simple Route
+from flask import Blueprint, render_template
+main = Blueprint('main', __name__)
+
+@main.route('/')
+def home():
+    return render_template('base.html')
+💡 Blueprints allow organizing routes cleanly across multiple files.
+________________________________________
+✅ Step 6: templates/base.html
+<!DOCTYPE html>
+<html>
+<head>
+    <title>TaskMaster</title>
+</head>
+<body>
+    <h1>Welcome to TaskMaster!</h1>
+</body>
+</html>
+________________________________________
+✅ Step 7: Install Requirements
+In requirements.txt:
+Flask
+Flask-SQLAlchemy
+Flask-WTF
+Flask-Login
+
+Then run:
+pip install -r requirements.txt
+________________________________________
+✅ Now Run the App:
+python run.py
+Visit http://127.0.0.1:5000/ — You’ll see “Welcome to TaskMaster!”
+
+
+
+🔐 Phase 2: User Authentication (Register & Login)
+________________________________________
+✅ Step 1: Create the User Model
+app/models.py
+from . import db
+from flask_login import UserMixin
+
+class User(UserMixin, db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    username = db.Column(db.String(150), unique=True, nullable=False)
+    password = db.Column(db.String(150), nullable=False)
+Explanation:
+•	UserMixin gives us built-in methods like is_authenticated, get_id(), etc.
+•	db.Model defines a table using SQLAlchemy.
+________________________________________
+✅ Step 2: Set up Flask-Login's user_loader
+Back in app/__init__.py, add this after login_manager.init_app(app):
+python
+CopyEdit
+from .models import User
+
+@login_manager.user_loader
+def load_user(user_id):
+    return User.query.get(int(user_id))
+Explanation:
+•	Tells Flask-Login how to get a user by ID (when session is loaded).
+•	Required for login persistence to work.
+________________________________________
+✅ Step 3: User Registration Form
+Create app/forms.py
+python
+CopyEdit
+from flask_wtf import FlaskForm
+from wtforms import StringField, PasswordField, SubmitField
+from wtforms.validators import InputRequired, Length
+
+class RegisterForm(FlaskForm):
+    username = StringField('Username', validators=[InputRequired(), Length(min=3, max=150)])
+    password = PasswordField('Password', validators=[InputRequired(), Length(min=4)])
+    submit = SubmitField('Register')
+
+class LoginForm(FlaskForm):
+    username = StringField('Username', validators=[InputRequired()])
+    password = PasswordField('Password', validators=[InputRequired()])
+    submit = SubmitField('Login')
+________________________________________
+✅ Step 4: Registration & Login Routes
+Update app/routes.py:
+python
+CopyEdit
+from flask import Blueprint, render_template, redirect, url_for, flash
+from .forms import RegisterForm, LoginForm
+from .models import User
+from . import db
+from flask_login import login_user, logout_user, login_required, current_user
+from werkzeug.security import generate_password_hash, check_password_hash
+
+main = Blueprint('main', __name__)
+
+@main.route('/')
+def home():
+    return render_template('base.html')
+
+@main.route('/register', methods=['GET', 'POST'])
+def register():
+    form = RegisterForm()
+    if form.validate_on_submit():
+        hashed_pw = generate_password_hash(form.password.data)
+        user = User(username=form.username.data, password=hashed_pw)
+        db.session.add(user)
+        db.session.commit()
+        flash('Registered! You can now log in.')
+        return redirect(url_for('main.login'))
+    return render_template('register.html', form=form)
+
+@main.route('/login', methods=['GET', 'POST'])
+def login():
+    form = LoginForm()
+    if form.validate_on_submit():
+        user = User.query.filter_by(username=form.username.data).first()
+        if user and check_password_hash(user.password, form.password.data):
+            login_user(user)
+            return redirect(url_for('main.dashboard'))
+        else:
+            flash('Invalid credentials.')
+    return render_template('login.html', form=form)
+
+@main.route('/dashboard')
+@login_required
+def dashboard():
+    return f'<h1>Welcome {current_user.username}!</h1><br><a href="/logout">Logout</a>'
+
+@main.route('/logout')
+@login_required
+def logout():
+    logout_user()
+    return redirect(url_for('main.login'))
+________________________________________
+✅ Step 5: Templates
+templates/register.html
+html
+CopyEdit
+<h2>Register</h2>
+<form method="POST">
+    {{ form.hidden_tag() }}
+    {{ form.username.label }} {{ form.username() }}<br>
+    {{ form.password.label }} {{ form.password() }}<br>
+    {{ form.submit() }}
+</form>
+templates/login.html
+html
+CopyEdit
+<h2>Login</h2>
+<form method="POST">
+    {{ form.hidden_tag() }}
+    {{ form.username.label }} {{ form.username() }}<br>
+    {{ form.password.label }} {{ form.password() }}<br>
+    {{ form.submit() }}
+</form>
+________________________________________
+✅ Step 6: Initialize the DB
+Open Python shell:
+python
+Open Python shell:
+from app import create_app, db
+from app.models import User
+
+app = create_app()
+with app.app_context():
+    db.create_all()
+________________________________________
+🔁 Test the Flow
+1.	Visit http://127.0.0.1:5000/register → Register new user
+2.	Login at http://127.0.0.1:5000/login
+3.	View dashboard
+4.	Logout
+________________________________________
+✅ Concepts Covered So Far
+Concept	Description
+Flask app factory	Allows scalable app creation
+Blueprints	Organize routes and features
+Flask-WTF	Clean, secure forms
+SQLAlchemy ORM	Define models as Python classes
+UserMixin + Flask-Login	Manage login sessions
+Password hashing	Secure password storage
+Flask templates	Render dynamic HTML
+
+✅ Phase 3: Core To-Do App Functionality
+________________________________________
+🎯 Goal
+We'll build a model called Task, and allow each logged-in user to:
+•	✅ Create new tasks
+•	✅ View their task list
+•	✅ Edit tasks (mark complete or change text)
+•	✅ Delete tasks
+________________________________________
+✅ Step 1: Task Model
+Update app/models.py:
+python
+CopyEdit
+class Task(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    content = db.Column(db.String(300), nullable=False)
+    completed = db.Column(db.Boolean, default=False)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'))
+Also, update the User model to add this line inside the class:
+python
+CopyEdit
+tasks = db.relationship('Task', backref='owner', lazy=True)
+Explanation:
+•	Task is linked to a User via user_id.
+•	A user can have many tasks (tasks relationship).
+________________________________________
+✅ Step 2: Create Task Form
+In app/forms.py, add:
+python
+CopyEdit
+from wtforms import BooleanField
+
+class TaskForm(FlaskForm):
+    content = StringField('Task', validators=[InputRequired(), Length(max=300)])
+    submit = SubmitField('Add Task')
+________________________________________
+✅ Step 3: Task Routes
+Update app/routes.py with new task routes:
+python
+CopyEdit
+from .forms import TaskForm
+from .models import Task
+
+@main.route('/tasks', methods=['GET', 'POST'])
+@login_required
+def tasks():
+    form = TaskForm()
+    if form.validate_on_submit():
+        task = Task(content=form.content.data, owner=current_user)
+        db.session.add(task)
+        db.session.commit()
+        return redirect(url_for('main.tasks'))
+    
+    user_tasks = Task.query.filter_by(owner=current_user).all()
+    return render_template('tasks.html', form=form, tasks=user_tasks)
+
+@main.route('/delete_task/<int:task_id>')
+@login_required
+def delete_task(task_id):
+    task = Task.query.get_or_404(task_id)
+    if task.owner != current_user:
+        abort(403)
+    db.session.delete(task)
+    db.session.commit()
+    return redirect(url_for('main.tasks'))
+
+@main.route('/toggle_complete/<int:task_id>')
+@login_required
+def toggle_complete(task_id):
+    task = Task.query.get_or_404(task_id)
+    if task.owner != current_user:
+        abort(403)
+    task.completed = not task.completed
+    db.session.commit()
+    return redirect(url_for('main.tasks'))
+________________________________________
+✅ Step 4: Task Template
+Create templates/tasks.html:
+html
+CopyEdit
+<h2>Your Tasks</h2>
+<form method="POST">
+    {{ form.hidden_tag() }}
+    {{ form.content.label }} {{ form.content() }} {{ form.submit() }}
+</form>
+
+<ul>
+{% for task in tasks %}
+    <li>
+        {% if task.completed %}
+            <strike>{{ task.content }}</strike>
+        {% else %}
+            {{ task.content }}
+        {% endif %}
+        <a href="{{ url_for('main.toggle_complete', task_id=task.id) }}">[Toggle]</a>
+        <a href="{{ url_for('main.delete_task', task_id=task.id) }}">[Delete]</a>
+    </li>
+{% endfor %}
+</ul>
+________________________________________
+✅ Step 5: Update the Database
+Run this in Python shell:
+bash
+CopyEdit
+python
+python
+CopyEdit
+from app import create_app, db
+from app.models import Task
+
+app = create_app()
+with app.app_context():
+    db.create_all()
+________________________________________
+🔁 Try It Out
+1.	Log in
+2.	Visit /tasks
+3.	Add tasks
+4.	Toggle and delete them
+________________________________________
+✅ Concepts Covered in This Phase
+Concept	Description
+One-to-many relationship	One user → many tasks
+Form handling	Add new task
+Authorization	Only owner can edit/delete
+URL variables	Dynamic route paths (/<int:id>)
+Query filters	Show only tasks of logged-in user
+
+
+
+
+
+
+
+
+
+
+
+✅ Phase 4: Deadlines, Categories, Search & Better UI
+________________________________________
+🔧 Goals
+1.	🗓️ Add Deadlines to tasks
+2.	🏷️ Add Categories (Labels)
+3.	🔍 Implement Search / Filter
+4.	🎨 Improve UI with Bootstrap
+________________________________________
+✅ Step 1: Update Task Model
+In app/models.py, update the Task model:
+python
+CopyEdit
+from datetime import datetime
+
+class Task(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    content = db.Column(db.String(300), nullable=False)
+    completed = db.Column(db.Boolean, default=False)
+    deadline = db.Column(db.DateTime, nullable=True)
+    category = db.Column(db.String(50), nullable=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'))
+________________________________________
+✅ Step 2: Update the Task Form
+In app/forms.py, update TaskForm:
+python
+CopyEdit
+from wtforms.fields import DateTimeField, SelectField
+
+class TaskForm(FlaskForm):
+    content = StringField('Task', validators=[InputRequired(), Length(max=300)])
+    deadline = DateTimeField('Deadline (optional)', format='%Y-%m-%d %H:%M', validators=[], render_kw={"placeholder": "YYYY-MM-DD HH:MM"})
+    category = SelectField('Category', choices=[('', 'None'), ('Work', 'Work'), ('Personal', 'Personal'), ('Urgent', 'Urgent')])
+    submit = SubmitField('Add Task')
+________________________________________
+✅ Step 3: Update Task Routes
+In routes.py, update the /tasks route:
+python
+CopyEdit
+@main.route('/tasks', methods=['GET', 'POST'])
+@login_required
+def tasks():
+    form = TaskForm()
+    if form.validate_on_submit():
+        task = Task(
+            content=form.content.data,
+            deadline=form.deadline.data,
+            category=form.category.data,
+            owner=current_user
+        )
+        db.session.add(task)
+        db.session.commit()
+        return redirect(url_for('main.tasks'))
+
+    search_query = request.args.get('q', '')
+    if search_query:
+        user_tasks = Task.query.filter(
+            Task.owner == current_user,
+            Task.content.ilike(f'%{search_query}%')
+        ).all()
+    else:
+        user_tasks = Task.query.filter_by(owner=current_user).order_by(Task.deadline).all()
+
+    return render_template('tasks.html', form=form, tasks=user_tasks, search_query=search_query)
+________________________________________
+✅ Step 4: Improve HTML Template
+Update templates/tasks.html with:
+html
+CopyEdit
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+
+<div class="container mt-4">
+    <h2>Your Tasks</h2>
+
+    <form method="GET" class="mb-3">
+        <input type="text" name="q" value="{{ search_query }}" placeholder="Search tasks..." class="form-control" />
+    </form>
+
+    <form method="POST">
+        {{ form.hidden_tag() }}
+        <div class="mb-3">
+            {{ form.content.label }} {{ form.content(class="form-control") }}
+        </div>
+        <div class="mb-3">
+            {{ form.deadline.label }} {{ form.deadline(class="form-control") }}
+        </div>
+        <div class="mb-3">
+            {{ form.category.label }} {{ form.category(class="form-select") }}
+        </div>
+        {{ form.submit(class="btn btn-primary") }}
+    </form>
+
+    <ul class="list-group mt-4">
+    {% for task in tasks %}
+        <li class="list-group-item d-flex justify-content-between align-items-center {% if task.completed %}list-group-item-success{% endif %}">
+            <div>
+                <strong>{{ task.content }}</strong>
+                {% if task.deadline %}<br><small>Deadline: {{ task.deadline.strftime('%Y-%m-%d %H:%M') }}</small>{% endif %}
+                {% if task.category %}<br><span class="badge bg-info">{{ task.category }}</span>{% endif %}
+            </div>
+            <div>
+                <a href="{{ url_for('main.toggle_complete', task_id=task.id) }}" class="btn btn-sm btn-outline-secondary">✓</a>
+                <a href="{{ url_for('main.delete_task', task_id=task.id) }}" class="btn btn-sm btn-danger">🗑</a>
+            </div>
+        </li>
+    {% else %}
+        <li class="list-group-item">No tasks yet.</li>
+    {% endfor %}
+    </ul>
+</div>
+________________________________________
+✅ Step 5: Database Migration (optional for changes)
+If you’re using flask db migrations:
+bash
+CopyEdit
+flask db migrate -m "Add deadline and category to Task"
+flask db upgrade
+Otherwise, use the shell like before to db.drop_all() and db.create_all() to refresh tables.
+________________________________________
+💡 What You Learned in Phase 4
+Concept	Description
+DateTimeField	Input for deadlines
+SelectField	For categories
+Search Query	request.args.get + filter
+ilike	Case-insensitive partial match
+Bootstrap	Better UI with buttons, forms, badges
+Conditional rendering	Show deadline/category only if present
+
+
+
+
+✅ Phase 5: User Profile Page, Themes, Pagination, and Settings
+________________________________________
+🔧 Goals
+1.	👤 Create a User Profile page with info and stats
+2.	🌗 Add Dark/Light mode toggle
+3.	📄 Add Pagination to tasks
+4.	⚙️ Add a basic Settings page
+________________________________________
+✅ Step 1: User Profile Page
+Route (routes.py):
+python
+CopyEdit
+@main.route('/profile')
+@login_required
+def profile():
+    tasks = Task.query.filter_by(owner=current_user).all()
+    completed = sum(1 for t in tasks if t.completed)
+    total = len(tasks)
+    return render_template('profile.html', user=current_user, total=total, completed=completed)
+Template (templates/profile.html):
+html
+CopyEdit
+<div class="container mt-4">
+    <h2>{{ user.username }}'s Profile</h2>
+    <p>Email: {{ user.email }}</p>
+    <p>Tasks: {{ total }}</p>
+    <p>Completed: {{ completed }}</p>
+    <a href="{{ url_for('main.settings') }}" class="btn btn-secondary mt-3">Settings</a>
+</div>
+________________________________________
+✅ Step 2: Settings Page (Theme toggle)
+We'll store user preferences later in the DB. For now, use a session-based toggle.
+Add to routes.py:
+python
+CopyEdit
+@main.route('/settings', methods=['GET', 'POST'])
+@login_required
+def settings():
+    if request.method == 'POST':
+        theme = request.form.get('theme')
+        session['theme'] = theme
+        return redirect(url_for('main.settings'))
+    return render_template('settings.html', current_theme=session.get('theme', 'light'))
+Template (templates/settings.html):
+html
+CopyEdit
+<div class="container mt-4">
+    <h2>Settings</h2>
+    <form method="POST">
+        <label>Select Theme:</label>
+        <select name="theme" class="form-select">
+            <option value="light" {% if current_theme == 'light' %}selected{% endif %}>Light</option>
+            <option value="dark" {% if current_theme == 'dark' %}selected{% endif %}>Dark</option>
+        </select>
+        <button type="submit" class="btn btn-primary mt-2">Save</button>
+    </form>
+</div>
+________________________________________
+✅ Step 3: Apply Theme to Layout
+In base.html or any layout, conditionally load theme:
+html
+CopyEdit
+<body class="{% if session.get('theme') == 'dark' %}bg-dark text-light{% else %}bg-light text-dark{% endif %}">
+________________________________________
+✅ Step 4: Task Pagination
+Instead of displaying all tasks, let’s paginate them:
+Update /tasks route:
+python
+CopyEdit
+@main.route('/tasks')
+@login_required
+def tasks():
+    page = request.args.get('page', 1, type=int)
+    per_page = 5
+
+    search_query = request.args.get('q', '')
+    if search_query:
+        tasks_paginated = Task.query.filter(
+            Task.owner == current_user,
+            Task.content.ilike(f'%{search_query}%')
+        ).paginate(page=page, per_page=per_page)
+    else:
+        tasks_paginated = Task.query.filter_by(owner=current_user).paginate(page=page, per_page=per_page)
+
+    return render_template('tasks.html', form=TaskForm(), tasks=tasks_paginated.items, pagination=tasks_paginated, search_query=search_query)
+In tasks.html, add pagination controls:
+html
+CopyEdit
+<nav class="mt-3">
+  <ul class="pagination">
+    {% if pagination.has_prev %}
+      <li class="page-item"><a class="page-link" href="{{ url_for('main.tasks', page=pagination.prev_num, q=search_query) }}">Previous</a></li>
+    {% endif %}
+    <li class="page-item disabled"><span class="page-link">Page {{ pagination.page }} of {{ pagination.pages }}</span></li>
+    {% if pagination.has_next %}
+      <li class="page-item"><a class="page-link" href="{{ url_for('main.tasks', page=pagination.next_num, q=search_query) }}">Next</a></li>
+    {% endif %}
+  </ul>
+</nav>
+________________________________________
+✅ Step 5: Add Navigation (Optional)
+In your layout or top of tasks.html, include:
+html
+CopyEdit
+<nav class="navbar navbar-expand-lg navbar-dark bg-dark">
+  <div class="container">
+    <a class="navbar-brand" href="{{ url_for('main.tasks') }}">TaskMaster</a>
+    <div>
+      <a class="btn btn-light btn-sm" href="{{ url_for('main.profile') }}">Profile</a>
+      <a class="btn btn-warning btn-sm" href="{{ url_for('main.settings') }}">Settings</a>
+      <a class="btn btn-danger btn-sm" href="{{ url_for('main.logout') }}">Logout</a>
+    </div>
+  </div>
+</nav>
+________________________________________
+💡 What You Learned in Phase 5
+Concept	Description
+Profile route	Custom route per user
+Theme handling	session + conditional rendering
+Pagination	paginate() with query filters
+Navigation	Consistent layout
+Settings	Use POST forms to save preferences
+
+
+
+
+
+
+
+
+
+✅ Phase 6: Deploying TaskMaster (Flask App) to the Web
+________________________________________
+🔧 Goals:
+1.	Prepare your app for deployment
+2.	Push your code to GitHub
+3.	Deploy on a platform like Render or Railway
+4.	Make it production-ready: .env, gunicorn, Procfile, etc.
+________________________________________
+✅ Step 1: Make Project Production-Ready
+________________________________________
+📁 Create a .env file (Don’t share this publicly)
+ini
+CopyEdit
+FLASK_APP=wsgi.py
+FLASK_ENV=production
+SECRET_KEY=your-secret-key
+SQLALCHEMY_DATABASE_URI=sqlite:///site.db  # Change to PostgreSQL later
+📦 Install python-dotenv
+bash
+CopyEdit
+pip install python-dotenv
+📄 In __init__.py or config.py – load env variables:
+python
+CopyEdit
+import os
+from dotenv import load_dotenv
+load_dotenv()
+
+class Config:
+    SECRET_KEY = os.getenv("SECRET_KEY")
+    SQLALCHEMY_DATABASE_URI = os.getenv("SQLALCHEMY_DATABASE_URI")
+    SQLALCHEMY_TRACK_MODIFICATIONS = False
+________________________________________
+✅ Step 2: Add gunicorn and Procfile
+Install gunicorn (for production):
+bash
+CopyEdit
+pip install gunicorn
+Create Procfile:
+makefile
+CopyEdit
+web: gunicorn wsgi:app
+Create wsgi.py:
+python
+CopyEdit
+from app import create_app
+
+app = create_app()
+________________________________________
+✅ Step 3: Push to GitHub
+1.	Initialize Git:
+bash
+CopyEdit
+git init
+git add .
+git commit -m "Initial commit"
+2.	Push to GitHub:
+bash
+CopyEdit
+git remote add origin https://github.com/your-username/taskmaster.git
+git push -u origin main
+________________________________________
+✅ Step 4: Deploy on Render (or Railway)
+________________________________________
+🛠️ Render.com (easy GUI)
+1.	Go to https://render.com
+2.	Click New Web Service
+3.	Connect your GitHub repo
+4.	Set:
+o	Runtime: Python
+o	Build Command: pip install -r requirements.txt
+o	Start Command: gunicorn wsgi:app
+o	Environment: production
+o	Add environment variables (SECRET_KEY, etc.)
+________________________________________
+🛠️ Railway.app (alternative)
+1.	Go to https://railway.app
+2.	Start a new project
+3.	Deploy from GitHub
+4.	Set up secrets
+5.	Done!
+________________________________________
+✅ Step 5: Test Live App
+•	Try logging in
+•	Try adding tasks
+•	Check profile and theme toggle
+•	Test search and pagination
+________________________________________
+✅ Step 6: Optional – Use PostgreSQL on Render
+Change your .env:
+ini
+CopyEdit
+SQLALCHEMY_DATABASE_URI=postgresql://user:pass@host/dbname
+Use flask db upgrade if using Flask-Migrate.
+________________________________________
+💡 What You Learned in Phase 6
+Concept	Description
+.env	Secure config
+gunicorn	WSGI server
+Procfile	Tells platform how to run your app
+Render/Railway	Deploy Flask from GitHub
+wsgi.py	Entry point for production server
+
+
+
+
+
+
+
+
+
