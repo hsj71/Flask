@@ -18,6 +18,7 @@ File / Tag	Inline Preview	Why
   🔗 Links ([text](url))	✅ Works	Markdown-safe and sanitized
   ✅ What You Can Do on GitHub
 </pre>
+
 ---
 Here’s what’s possible and safe inside .md on GitHub:
 
