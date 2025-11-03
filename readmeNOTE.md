@@ -9,14 +9,15 @@
 
 Here’s the simple truth:
 File / Tag	Inline Preview	Why
-🖼️ Images (.png, .jpg, .gif, .svg)	✅ Works	Safe & supported by Markdown spec
-📄 .doc / .docx	❌ No	Treated as downloadable binary
-📘 .pdf	❌ No	Must click to open; not embedded
-🎥 Videos / Audio	❌ No	HTML tags stripped
-🧩 <iframe> / <embed> / <object>	❌ No	Security sandbox blocks them
-🔗 Links ([text](url))	✅ Works	Markdown-safe and sanitized
-✅ What You Can Do on GitHub
-
+<pre>
+  🖼️ Images (.png, .jpg, .gif, .svg)	✅ Works	Safe & supported by Markdown spec
+  📄 .doc / .docx	❌ No	Treated as downloadable binary
+  📘 .pdf	❌ No	Must click to open; not embedded
+  🎥 Videos / Audio	❌ No	HTML tags stripped
+  🧩 <iframe> / <embed> / <object>	❌ No	Security sandbox blocks them
+  🔗 Links ([text](url))	✅ Works	Markdown-safe and sanitized
+  ✅ What You Can Do on GitHub
+</pre>
 ---
 Here’s what’s possible and safe inside .md on GitHub:
 
